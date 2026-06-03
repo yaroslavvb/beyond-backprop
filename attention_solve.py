@@ -588,16 +588,42 @@ def generate_html_dashboard(num_layers, dim, seq_len, backprop_steps, altprop_st
                 </div>
             </section>
 
-            <!-- 4. Weight Matrix Changes over Time -->
+            <!-- 4a. Query Weight Matrix Changes over Time -->
             <section class="card card-large">
                 <div class="card-header">
                     <div>
-                        <h2 class="card-title">Weight Matrix Changes over Time</h2>
-                        <p class="card-description">Frobenius norm distance to initial weights and cumulative path length traveled by each parameter matrix ($W_q$, $W_k$, $W_v$) for both backprop and altprop models.</p>
+                        <h2 class="card-title">Query Weight Matrix (W<sub>q</sub>) Changes</h2>
+                        <p class="card-description">Frobenius norm distance to initial weights and cumulative path length traveled by W<sub>q</sub> across all layers for both backprop and altprop models.</p>
                     </div>
                 </div>
                 <div class="image-container">
-                    <img src="weight_changes_over_time.png" alt="Weight Changes Plot">
+                    <img src="weight_changes_W_q.png" alt="Query Weight Changes Plot">
+                </div>
+            </section>
+
+            <!-- 4b. Key Weight Matrix Changes over Time -->
+            <section class="card card-large">
+                <div class="card-header">
+                    <div>
+                        <h2 class="card-title">Key Weight Matrix (W<sub>k</sub>) Changes</h2>
+                        <p class="card-description">Frobenius norm distance to initial weights and cumulative path length traveled by W<sub>k</sub> across all layers for both backprop and altprop models.</p>
+                    </div>
+                </div>
+                <div class="image-container">
+                    <img src="weight_changes_W_k.png" alt="Key Weight Changes Plot">
+                </div>
+            </section>
+
+            <!-- 4c. Value Weight Matrix Changes over Time -->
+            <section class="card card-large">
+                <div class="card-header">
+                    <div>
+                        <h2 class="card-title">Value Weight Matrix (W<sub>v</sub>) Changes</h2>
+                        <p class="card-description">Frobenius norm distance to initial weights and cumulative path length traveled by W<sub>v</sub> across all layers for both backprop and altprop models.</p>
+                    </div>
+                </div>
+                <div class="image-container">
+                    <img src="weight_changes_W_v.png" alt="Value Weight Changes Plot">
                 </div>
             </section>
 
@@ -820,13 +846,6 @@ def train():
     plt.close()
     print(f"Saved target angles plot to {plot_path_angles}")
 
-    # Plot 4: Parameter Changes over Time (Frobenius Norms)
-    fig4, (ax_q, ax_k, ax_v) = plt.subplots(3, 1, figsize=(8, 12), sharex=True, dpi=150)
-    plt.style.use('seaborn-v0_8-whitegrid')
-    ax_q.xaxis.set_major_locator(MaxNLocator(integer=True))
-    ax_k.xaxis.set_major_locator(MaxNLocator(integer=True))
-    ax_v.xaxis.set_major_locator(MaxNLocator(integer=True))
-    
     # Map layer indices to distinct colors
     layer_colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b']
     
@@ -837,6 +856,19 @@ def train():
             parts = name.split('.')
             return f"L{parts[0]}", int(parts[0])
         return '', 0
+
+    # Plot 4a: Query Weight Matrix (W_q) Changes over Time
+    fig_q, ax_q = plt.subplots(figsize=(8, 5.5), dpi=150)
+    plt.style.use('seaborn-v0_8-whitegrid')
+    ax_q.xaxis.set_major_locator(MaxNLocator(integer=True))
+
+    # Plot 4b: Key Weight Matrix (W_k) Changes over Time
+    fig_k, ax_k = plt.subplots(figsize=(8, 5.5), dpi=150)
+    ax_k.xaxis.set_major_locator(MaxNLocator(integer=True))
+
+    # Plot 4c: Value Weight Matrix (W_v) Changes over Time
+    fig_v, ax_v = plt.subplots(figsize=(8, 5.5), dpi=150)
+    ax_v.xaxis.set_major_locator(MaxNLocator(integer=True))
 
     for name in classic_init_params:
         layer_label, layer_idx = get_layer_info(name)
@@ -860,25 +892,36 @@ def train():
             ax_v.plot(fixed_dist_to_start[name], label=f'{layer_label} altprop - Dist', color=color, linestyle=':', linewidth=1.5)
             ax_v.plot(fixed_path_length[name], label=f'{layer_label} altprop - Path', color=color, linestyle='-.', linewidth=1.0)
             
-    ax_q.set_title('Query Weight Matrix ($W_q$) Changes', fontsize=11, fontweight='bold')
-    ax_q.set_ylabel('Frobenius Norm', fontsize=10)
-    ax_q.legend(frameon=True, facecolor='white', framealpha=0.9, fontsize=7, ncol=3)
+    ax_q.set_title('Query Weight Matrix ($W_q$) Changes over Steps (Frobenius Norm)', fontsize=12, fontweight='bold')
+    ax_q.set_xlabel('Step', fontsize=11)
+    ax_q.set_ylabel('Frobenius Norm', fontsize=11)
+    ax_q.legend(frameon=True, facecolor='white', framealpha=0.9, fontsize=8, ncol=3)
+    fig_q.tight_layout()
+    plot_path_q = 'weight_changes_W_q.png'
+    fig_q.savefig(plot_path_q)
+    plt.close(fig_q)
+    print(f"Saved W_q weight changes plot to {plot_path_q}")
 
-    ax_k.set_title('Key Weight Matrix ($W_k$) Changes', fontsize=11, fontweight='bold')
-    ax_k.set_ylabel('Frobenius Norm', fontsize=10)
-    ax_k.legend(frameon=True, facecolor='white', framealpha=0.9, fontsize=7, ncol=3)
+    ax_k.set_title('Key Weight Matrix ($W_k$) Changes over Steps (Frobenius Norm)', fontsize=12, fontweight='bold')
+    ax_k.set_xlabel('Step', fontsize=11)
+    ax_k.set_ylabel('Frobenius Norm', fontsize=11)
+    ax_k.legend(frameon=True, facecolor='white', framealpha=0.9, fontsize=8, ncol=3)
+    fig_k.tight_layout()
+    plot_path_k = 'weight_changes_W_k.png'
+    fig_k.savefig(plot_path_k)
+    plt.close(fig_k)
+    print(f"Saved W_k weight changes plot to {plot_path_k}")
 
-    ax_v.set_title('Value Weight Matrix ($W_v$) Changes', fontsize=11, fontweight='bold')
-    ax_v.set_xlabel('Step', fontsize=10)
-    ax_v.set_ylabel('Frobenius Norm', fontsize=10)
-    ax_v.legend(frameon=True, facecolor='white', framealpha=0.9, fontsize=7, ncol=3)
+    ax_v.set_title('Value Weight Matrix ($W_v$) Changes over Steps (Frobenius Norm)', fontsize=12, fontweight='bold')
+    ax_v.set_xlabel('Step', fontsize=11)
+    ax_v.set_ylabel('Frobenius Norm', fontsize=11)
+    ax_v.legend(frameon=True, facecolor='white', framealpha=0.9, fontsize=8, ncol=3)
+    fig_v.tight_layout()
+    plot_path_v = 'weight_changes_W_v.png'
+    fig_v.savefig(plot_path_v)
+    plt.close(fig_v)
+    print(f"Saved W_v weight changes plot to {plot_path_v}")
 
-    fig4.suptitle('Weight Matrix Changes over Steps (Frobenius Norm)', fontsize=13, fontweight='bold', y=0.98)
-    plt.tight_layout()
-    plot_path_params = 'weight_changes_over_time.png'
-    plt.savefig(plot_path_params)
-    plt.close()
-    print(f"Saved weight changes plot to {plot_path_params}")
     for name in classic_dist_to_start:
         print(f"  backprop {name} | Dist to Start: {classic_dist_to_start[name][-1]:.6f} | Path Length: {classic_path_length[name][-1]:.6f}")
     for name in fixed_dist_to_start:
