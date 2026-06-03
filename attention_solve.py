@@ -207,9 +207,9 @@ def tune_lr_backtracking_100steps(student_initial_state, teacher, dim, batch_siz
         fixed_lr, loss_f, _ = run_step_with_lr_tuning(model_f, step_fixed, batch_x, batch_y, fixed_lr)
 
         if step >= 60:
-            print(f"  Tune Step {step:3d} | Classic LR: {classic_lr:.1f} (loss: {loss_c:.2e}) | Fixed LR: {fixed_lr:.1f} (loss: {loss_f:.2e})")
+            print(f"  Tune Step {step:3d} | backprop LR: {classic_lr:.1f} (loss: {loss_c:.2e}) | altprop LR: {fixed_lr:.1f} (loss: {loss_f:.2e})")
 
-    print(f"-> LR Tuning Phase Completed (100 steps) | Classic LR: {classic_lr:.3f} | Fixed LR: {fixed_lr:.3f}")
+    print(f"-> LR Tuning Phase Completed (100 steps) | backprop LR: {classic_lr:.3f} | altprop LR: {fixed_lr:.3f}")
     return classic_lr, fixed_lr
 
 def run_initial_lr_search(student_initial_state, teacher, dim, batch_size, num_rows):
@@ -424,30 +424,30 @@ def train():
             fixed_reached_step = step
 
         if step % 10 == 0 or step == 1:
-            print(f"Step {step:3d} | Classic eval loss: {loss_class_eval:.2e} (LR: {classic_lr_used:.1f}) | "
-                  f"Fixed eval loss: {loss_fixed_eval:.2e} (LR: {fixed_lr_used:.1f})")
+            print(f"Step {step:3d} | backprop eval loss: {loss_class_eval:.2e} (LR: {classic_lr_used:.1f}) | "
+                  f"altprop eval loss: {loss_fixed_eval:.2e} (LR: {fixed_lr_used:.1f})")
 
         if classic_reached_step is not None and fixed_reached_step is not None:
             final_step = step
-            print(f"Reached 100x reduction: classic at step {classic_reached_step}, "
-                  f"fixed at step {fixed_reached_step}; stopping at step {step}.")
+            print(f"Reached 100x reduction: backprop at step {classic_reached_step}, "
+                  f"altprop at step {fixed_reached_step}; stopping at step {step}.")
             break
     else:
         print(f"Reached max_steps={max_steps} before both methods hit the 100x target. "
-              f"classic_reached={classic_reached_step}, fixed_reached={fixed_reached_step}")
+              f"backprop_reached={classic_reached_step}, altprop_reached={fixed_reached_step}")
 
     # Plot 1: Reconstruction Error
     fig1, ax1 = plt.subplots(figsize=(8, 5.5), dpi=150)
     plt.style.use('seaborn-v0_8-whitegrid')
     ax1.xaxis.set_major_locator(MaxNLocator(integer=True))
-    ax1.plot(class_loss_ind, label='Classic - Fixed Eval Batch', color='#1f77b4', linewidth=3.0)
-    ax1.plot(fixed_loss_ind, label='Fixed - Fixed Eval Batch', color='#ff7f0e', linewidth=1.5)
+    ax1.plot(class_loss_ind, label='backprop - Fixed Eval Batch', color='#1f77b4', linewidth=3.0)
+    ax1.plot(fixed_loss_ind, label='altprop - Fixed Eval Batch', color='#ff7f0e', linewidth=1.5)
     ax1.axhline(target_eval_loss, color='#333333', linewidth=1.0, linestyle='-.',
                 label=f'100x target ({target_eval_loss:.1e})')
     ax1.set_yscale('log')
     ax1.set_title(
         f'Reconstruction Loss (MSE) on New Batch over Steps\n'
-        f'Stopped at step {final_step} (Classic: {classic_reached_step or "N/A"}, Fixed: {fixed_reached_step or "N/A"})',
+        f'Stopped at step {final_step} (backprop: {classic_reached_step or "N/A"}, altprop: {fixed_reached_step or "N/A"})',
         fontsize=12, fontweight='bold'
     )
     ax1.set_xlabel('Step', fontsize=11)
@@ -462,11 +462,11 @@ def train():
     # Plot 2: Dynamic Learning Rate
     fig2, ax2 = plt.subplots(figsize=(8, 5.5), dpi=150)
     ax2.xaxis.set_major_locator(MaxNLocator(integer=True))
-    ax2.plot(classic_lr_history, label='Classic Learning Rate', color='#1f77b4', linewidth=3.0)
-    ax2.plot(fixed_lr_history, label='Fixed Learning Rate', color='#ff7f0e', linewidth=1.5, linestyle='--')
+    ax2.plot(classic_lr_history, label='backprop Learning Rate', color='#1f77b4', linewidth=3.0)
+    ax2.plot(fixed_lr_history, label='altprop Learning Rate', color='#ff7f0e', linewidth=1.5, linestyle='--')
     ax2.set_title(
         f'Dynamic Learning Rate Schedule over Steps\n'
-        f'Final Classic LR={classic_lr:.1f} | Final Fixed LR={fixed_lr:.1f}',
+        f'Final backprop LR={classic_lr:.1f} | Final altprop LR={fixed_lr:.1f}',
         fontsize=12, fontweight='bold'
     )
     ax2.set_xlabel('Step', fontsize=11)
@@ -481,11 +481,11 @@ def train():
     # Plot 3: Target Angles over Time
     fig3, ax3 = plt.subplots(figsize=(8, 5.5), dpi=150)
     ax3.xaxis.set_major_locator(MaxNLocator(integer=True))
-    ax3.plot(class_angles_history, label='Classic - Fixed Eval Batch', color='#1f77b4', linewidth=3.0)
-    ax3.plot(fixed_angles_history, label='Fixed - Fixed Eval Batch', color='#ff7f0e', linewidth=1.5)
+    ax3.plot(class_angles_history, label='backprop - Fixed Eval Batch', color='#1f77b4', linewidth=3.0)
+    ax3.plot(fixed_angles_history, label='altprop - Fixed Eval Batch', color='#ff7f0e', linewidth=1.5)
     ax3.set_title(
         f'Average Angle Between Produced and Desired Targets\n'
-        f'Stopped at step {final_step} (Classic: {classic_reached_step or "N/A"}, Fixed: {fixed_reached_step or "N/A"})',
+        f'Stopped at step {final_step} (backprop: {classic_reached_step or "N/A"}, altprop: {fixed_reached_step or "N/A"})',
         fontsize=12, fontweight='bold'
     )
     ax3.set_xlabel('Step', fontsize=11)
@@ -511,30 +511,30 @@ def train():
 
     # Plot W_q
     if name_q:
-        ax_q.plot(classic_dist_to_start[name_q], label='Classic - Dist to Start', color='#1f77b4', linestyle='-', linewidth=2.5)
-        ax_q.plot(classic_path_length[name_q], label='Classic - Path Length', color='#1f77b4', linestyle='--', linewidth=2.0)
-        ax_q.plot(fixed_dist_to_start[name_q], label='Fixed - Dist to Start', color='#aec7e8', linestyle=':', linewidth=2.0)
-        ax_q.plot(fixed_path_length[name_q], label='Fixed - Path Length', color='#aec7e8', linestyle='-.', linewidth=1.5)
+        ax_q.plot(classic_dist_to_start[name_q], label='backprop - Dist to Start', color='#1f77b4', linestyle='-', linewidth=2.5)
+        ax_q.plot(classic_path_length[name_q], label='backprop - Path Length', color='#1f77b4', linestyle='--', linewidth=2.0)
+        ax_q.plot(fixed_dist_to_start[name_q], label='altprop - Dist to Start', color='#aec7e8', linestyle=':', linewidth=2.0)
+        ax_q.plot(fixed_path_length[name_q], label='altprop - Path Length', color='#aec7e8', linestyle='-.', linewidth=1.5)
         ax_q.set_title('Query Weight Matrix ($W_q$) Changes', fontsize=11, fontweight='bold')
         ax_q.set_ylabel('Frobenius Norm', fontsize=10)
         ax_q.legend(frameon=True, facecolor='white', framealpha=0.9, fontsize=8, ncol=2)
 
     # Plot W_k
     if name_k:
-        ax_k.plot(classic_dist_to_start[name_k], label='Classic - Dist to Start', color='#2ca02c', linestyle='-', linewidth=2.5)
-        ax_k.plot(classic_path_length[name_k], label='Classic - Path Length', color='#2ca02c', linestyle='--', linewidth=2.0)
-        ax_k.plot(fixed_dist_to_start[name_k], label='Fixed - Dist to Start', color='#98df8a', linestyle=':', linewidth=2.0)
-        ax_k.plot(fixed_path_length[name_k], label='Fixed - Path Length', color='#98df8a', linestyle='-.', linewidth=1.5)
+        ax_k.plot(classic_dist_to_start[name_k], label='backprop - Dist to Start', color='#2ca02c', linestyle='-', linewidth=2.5)
+        ax_k.plot(classic_path_length[name_k], label='backprop - Path Length', color='#2ca02c', linestyle='--', linewidth=2.0)
+        ax_k.plot(fixed_dist_to_start[name_k], label='altprop - Dist to Start', color='#98df8a', linestyle=':', linewidth=2.0)
+        ax_k.plot(fixed_path_length[name_k], label='altprop - Path Length', color='#98df8a', linestyle='-.', linewidth=1.5)
         ax_k.set_title('Key Weight Matrix ($W_k$) Changes', fontsize=11, fontweight='bold')
         ax_k.set_ylabel('Frobenius Norm', fontsize=10)
         ax_k.legend(frameon=True, facecolor='white', framealpha=0.9, fontsize=8, ncol=2)
 
     # Plot W_v
     if name_v:
-        ax_v.plot(classic_dist_to_start[name_v], label='Classic - Dist to Start', color='#d62728', linestyle='-', linewidth=2.5)
-        ax_v.plot(classic_path_length[name_v], label='Classic - Path Length', color='#d62728', linestyle='--', linewidth=2.0)
-        ax_v.plot(fixed_dist_to_start[name_v], label='Fixed - Dist to Start', color='#ff9896', linestyle=':', linewidth=2.0)
-        ax_v.plot(fixed_path_length[name_v], label='Fixed - Path Length', color='#ff9896', linestyle='-.', linewidth=1.5)
+        ax_v.plot(classic_dist_to_start[name_v], label='backprop - Dist to Start', color='#d62728', linestyle='-', linewidth=2.5)
+        ax_v.plot(classic_path_length[name_v], label='backprop - Path Length', color='#d62728', linestyle='--', linewidth=2.0)
+        ax_v.plot(fixed_dist_to_start[name_v], label='altprop - Dist to Start', color='#ff9896', linestyle=':', linewidth=2.0)
+        ax_v.plot(fixed_path_length[name_v], label='altprop - Path Length', color='#ff9896', linestyle='-.', linewidth=1.5)
         ax_v.set_title('Value Weight Matrix ($W_v$) Changes', fontsize=11, fontweight='bold')
         ax_v.set_xlabel('Step', fontsize=10)
         ax_v.set_ylabel('Frobenius Norm', fontsize=10)
@@ -547,9 +547,9 @@ def train():
     plt.close()
     print(f"Saved weight changes plot to {plot_path_params}")
     for name in classic_dist_to_start:
-        print(f"  Classic {name} | Dist to Start: {classic_dist_to_start[name][-1]:.6f} | Path Length: {classic_path_length[name][-1]:.6f}")
+        print(f"  backprop {name} | Dist to Start: {classic_dist_to_start[name][-1]:.6f} | Path Length: {classic_path_length[name][-1]:.6f}")
     for name in fixed_dist_to_start:
-        print(f"  Fixed {name}   | Dist to Start: {fixed_dist_to_start[name][-1]:.6f} | Path Length: {fixed_path_length[name][-1]:.6f}")
+        print(f"  altprop {name}   | Dist to Start: {fixed_dist_to_start[name][-1]:.6f} | Path Length: {fixed_path_length[name][-1]:.6f}")
 
     # Generate test inputs with varying norms to plot norm transformations
 
@@ -563,10 +563,10 @@ def train():
         num_layers=NUM_LAYERS,
         dim=dim,
         seq_len=num_rows,
-        classic_steps=classic_steps_str,
-        fixed_steps=fixed_steps_str,
-        final_classic_lr=classic_lr,
-        final_fixed_lr=fixed_lr,
+        backprop_steps=classic_steps_str,
+        altprop_steps=fixed_steps_str,
+        final_backprop_lr=classic_lr,
+        final_altprop_lr=fixed_lr,
         execution_time=execution_time
     )
 

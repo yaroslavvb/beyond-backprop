@@ -1,6 +1,6 @@
 import time
 
-def generate_html_dashboard(num_layers, dim, seq_len, classic_steps, fixed_steps, final_classic_lr, final_fixed_lr, execution_time):
+def generate_html_dashboard(num_layers, dim, seq_len, backprop_steps, altprop_steps, final_backprop_lr, final_altprop_lr, execution_time):
     html_content = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -108,11 +108,11 @@ def generate_html_dashboard(num_layers, dim, seq_len, classic_steps, fixed_steps
             font-family: 'Outfit', sans-serif;
         }}
 
-        .badge-value.classic {{
+        .badge-value.backprop {{
             color: var(--accent-primary);
         }}
 
-        .badge-value.fixed {{
+        .badge-value.altprop {{
             color: var(--accent-secondary);
         }}
 
@@ -232,12 +232,12 @@ def generate_html_dashboard(num_layers, dim, seq_len, classic_steps, fixed_steps
                     <span class="badge-value">{seq_len}</span>
                 </div>
                 <div class="badge">
-                    <span class="badge-label">Classic Convergence</span>
-                    <span class="badge-value classic">{classic_steps}</span>
+                    <span class="badge-label">backprop Convergence</span>
+                    <span class="badge-value backprop">{backprop_steps}</span>
                 </div>
                 <div class="badge">
-                    <span class="badge-label">Fixed Convergence</span>
-                    <span class="badge-value fixed">{fixed_steps}</span>
+                    <span class="badge-label">altprop Convergence</span>
+                    <span class="badge-value altprop">{altprop_steps}</span>
                 </div>
                 <div class="badge">
                     <span class="badge-label">Execution Time</span>
@@ -291,7 +291,7 @@ def generate_html_dashboard(num_layers, dim, seq_len, classic_steps, fixed_steps
                 <div class="card-header">
                     <div>
                         <h2 class="card-title">Weight Matrix Changes over Time</h2>
-                        <p class="card-description">Frobenius norm distance to initial weights and cumulative path length traveled by each parameter matrix ($W_q$, $W_k$, $W_v$) for both Classic and Fixed models.</p>
+                        <p class="card-description">Frobenius norm distance to initial weights and cumulative path length traveled by each parameter matrix ($W_q$, $W_k$, $W_v$) for both backprop and altprop models.</p>
                     </div>
                 </div>
                 <div class="image-container">
