@@ -14,6 +14,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator
 from dashboard import generate_html_dashboard
 
 # Set random seed for reproducibility
@@ -438,6 +439,7 @@ def train():
     # Plot 1: Reconstruction Error
     fig1, ax1 = plt.subplots(figsize=(8, 5.5), dpi=150)
     plt.style.use('seaborn-v0_8-whitegrid')
+    ax1.xaxis.set_major_locator(MaxNLocator(integer=True))
     ax1.plot(class_loss_ind, label='Classic - Fixed Eval Batch', color='#1f77b4', linewidth=3.0)
     ax1.plot(fixed_loss_ind, label='Fixed - Fixed Eval Batch', color='#ff7f0e', linewidth=1.5)
     ax1.axhline(target_eval_loss, color='#333333', linewidth=1.0, linestyle='-.',
@@ -459,6 +461,7 @@ def train():
 
     # Plot 2: Dynamic Learning Rate
     fig2, ax2 = plt.subplots(figsize=(8, 5.5), dpi=150)
+    ax2.xaxis.set_major_locator(MaxNLocator(integer=True))
     ax2.plot(classic_lr_history, label='Classic Learning Rate', color='#1f77b4', linewidth=3.0)
     ax2.plot(fixed_lr_history, label='Fixed Learning Rate', color='#ff7f0e', linewidth=1.5, linestyle='--')
     ax2.set_title(
@@ -477,6 +480,7 @@ def train():
 
     # Plot 3: Target Angles over Time
     fig3, ax3 = plt.subplots(figsize=(8, 5.5), dpi=150)
+    ax3.xaxis.set_major_locator(MaxNLocator(integer=True))
     ax3.plot(class_angles_history, label='Classic - Fixed Eval Batch', color='#1f77b4', linewidth=3.0)
     ax3.plot(fixed_angles_history, label='Fixed - Fixed Eval Batch', color='#ff7f0e', linewidth=1.5)
     ax3.set_title(
@@ -496,6 +500,9 @@ def train():
     # Plot 4: Parameter Changes over Time (Frobenius Norms)
     fig4, (ax_q, ax_k, ax_v) = plt.subplots(3, 1, figsize=(8, 12), sharex=True, dpi=150)
     plt.style.use('seaborn-v0_8-whitegrid')
+    ax_q.xaxis.set_major_locator(MaxNLocator(integer=True))
+    ax_k.xaxis.set_major_locator(MaxNLocator(integer=True))
+    ax_v.xaxis.set_major_locator(MaxNLocator(integer=True))
     
     # Find parameter keys robustly
     name_q = next((k for k in classic_init_params if 'W_q' in k), None)
