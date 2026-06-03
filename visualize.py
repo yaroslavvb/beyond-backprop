@@ -39,8 +39,8 @@ def compute_average_angle(pred, target):
     return torch.mean(angles_normalized).item()
 
 def run_initial_lr_search(student_initial_state, teacher, dim, batch_size, num_rows):
-    """Computes and plots the learning rate sensitivity (1-step and 10-step losses) over a grid of learning rates."""
-    print("\nRunning Initial Learning Rate Search (1-step and 10-step sensitivity)...")
+    """Computes and plots the learning rate sensitivity (1-step and 10-step average angle) over a grid of learning rates."""
+    print("\nRunning Initial Learning Rate Search (1-step and 10-step average angle sensitivity)...")
     student_init = MultiLayerSelfAttention(dim, num_layers=len(list(teacher)))
     student_init.load_state_dict(copy.deepcopy(student_initial_state))
     
@@ -54,9 +54,10 @@ def run_initial_lr_search(student_initial_state, teacher, dim, batch_size, num_r
         batch_y_b = teacher(batch_x_b)
 
     with torch.no_grad():
-        init_loss_a = torch.mean((student_init(batch_x_a) - batch_y_a) ** 2).item()
+        init_angle_a = compute_average_angle(student_init(batch_x_a), batch_y_a)
 
-    lrs = np.logspace(-2, 3, 200)
+    # Expanded search boundaries to make sure the space where it increases is included
+    lrs = np.logspace(-2, 4, 200)
     steps_list = [1, 10]
     results = {s: {"same": [], "diff": []} for s in steps_list}
 
@@ -69,36 +70,35 @@ def run_initial_lr_search(student_initial_state, teacher, dim, batch_size, num_r
                 step_classic(model, batch_x_a, batch_y_a, lr)
                 
             with torch.no_grad():
-                loss_same = torch.mean((model(batch_x_a) - batch_y_a) ** 2).item()
-                loss_diff = torch.mean((model(batch_x_b) - batch_y_b) ** 2).item()
+                pred_same = model(batch_x_a)
+                pred_diff = model(batch_x_b)
+                angle_same = compute_average_angle(pred_same, batch_y_a)
+                angle_diff = compute_average_angle(pred_diff, batch_y_b)
+                if not math.isfinite(angle_same):
+                    angle_same = 1.0
+                if not math.isfinite(angle_diff):
+                    angle_diff = 1.0
                 
-            results[steps]["same"].append(loss_same)
-            results[steps]["diff"].append(loss_diff)
-
-    stable_lrs = []
-    for s in steps_list:
-        for lr, loss in zip(lrs, results[s]["same"]):
-            if loss < init_loss_a:
-                stable_lrs.append(lr)
-    max_stable_lr = max(stable_lrs) if stable_lrs else lrs[-1]
+            results[steps]["same"].append(angle_same)
+            results[steps]["diff"].append(angle_diff)
 
     fig, ax = plt.subplots(figsize=(8, 5.5), dpi=150)
     plt.style.use('seaborn-v0_8-whitegrid')
     colors = {1: '#1f77b4', 10: '#2ca02c'}
 
-    ax.axhline(init_loss_a, color='#7f7f7f', linestyle=':', linewidth=1.5, label='Initial Loss (Step 0)')
+    ax.axhline(init_angle_a, color='#7f7f7f', linestyle=':', linewidth=1.5, label='Initial Angle (Step 0)')
     for s in steps_list:
         ax.plot(lrs, results[s]["same"], label=f'{s} Step(s) - Same Batch (A)', color=colors[s], linewidth=2.0)
         ax.plot(lrs, results[s]["diff"], label=f'{s} Step(s) - Different Batch (B)', color=colors[s], linestyle='--', linewidth=2.0)
 
     ax.set_xscale('log')
-    ax.set_yscale('log')
-    ax.set_xlim(lrs[0], max_stable_lr)
-    ax.set_ylim(None, init_loss_a * 1.05)
+    ax.set_yscale('linear')
+    ax.set_xlim(lrs[0], lrs[-1])
+    ax.set_ylim(0.0, 1.05)
 
     ax.set_xlabel('Learning Rate (log scale)', fontsize=11)
-    ax.set_ylabel('Mean Squared Error (MSE) Loss (log scale)', fontsize=11)
-    ax.set_title('Initial Learning Rate Search: 1-step and 10-step Loss Sensitivity', fontsize=12, fontweight='bold')
+    ax.set_ylabel(r'Average Angle (normalized by $\pi$ rad)', fontsize=11)
+    ax.set_title('Initial Learning Rate Search: 1-step and 10-step Angle Sensitivity', fontsize=12, fontweight='bold')
     ax.legend(frameon=True, facecolor='white', framealpha=0.9, fontsize=9)
 
     plt.tight_layout()
