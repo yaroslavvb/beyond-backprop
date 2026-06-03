@@ -540,12 +540,16 @@ def train_and_visualize():
         with torch.no_grad(): Y = teacher(X)
 
         lr_c_used = lr_c
-        lr_c, loss_c = run_step_with_lr_tuning(model_c, step_classic, X, Y, lr_c, eval_x, eval_y, revert_on_fail=True)
+        step_classic(model_c, X, Y, lr_c)
+        with torch.no_grad():
+            loss_c = torch.mean((model_c(eval_x) - eval_y) ** 2).item()
         class_loss_ind.append(loss_c)
         classic_lr_history.append(lr_c_used)
 
         lr_f_used = lr_f
-        lr_f, loss_f = run_step_with_lr_tuning(model_f, step_fixed, X, Y, lr_f, eval_x, eval_y, revert_on_fail=True)
+        step_fixed(model_f, X, Y, lr_f)
+        with torch.no_grad():
+            loss_f = torch.mean((model_f(eval_x) - eval_y) ** 2).item()
         fixed_loss_ind.append(loss_f)
         fixed_lr_history.append(lr_f_used)
 

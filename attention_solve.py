@@ -166,8 +166,11 @@ def train():
         X = generate_orthogonal_rows_batch(batch_size, num_rows, dim)
         with torch.no_grad(): Y = teacher(X)
 
-        lr_c, loss_c = run_step_with_lr_tuning(model_c, step_classic, X, Y, lr_c, eval_x, eval_y, revert_on_fail=True)
-        lr_f, loss_f = run_step_with_lr_tuning(model_f, step_fixed, X, Y, lr_f, eval_x, eval_y, revert_on_fail=True)
+        step_classic(model_c, X, Y, lr_c)
+        step_fixed(model_f, X, Y, lr_f)
+        with torch.no_grad():
+            loss_c = torch.mean((model_c(eval_x) - eval_y) ** 2).item()
+            loss_f = torch.mean((model_f(eval_x) - eval_y) ** 2).item()
 
         if classic_reached is None and loss_c <= target_eval_loss: classic_reached = step
         if fixed_reached is None and loss_f <= target_eval_loss: fixed_reached = step
