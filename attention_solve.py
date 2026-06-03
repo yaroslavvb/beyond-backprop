@@ -112,7 +112,7 @@ def run_step_with_lr_tuning(model, step_fn, X, Y, lr, eval_x=None, eval_y=None, 
 
         if failed:
             if revert_on_fail: model.load_state_dict(state_backup)
-            lr *= 0.9
+            lr *= 0.8
             if not revert_on_fail or lr < 1e-15: break
         else:
             lr *= 1.1
