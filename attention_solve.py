@@ -15,7 +15,6 @@ import torch.nn.functional as F
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
-from dashboard import generate_html_dashboard
 
 # Set random seed for reproducibility
 torch.manual_seed(42)
@@ -67,7 +66,7 @@ class LinearSelfAttention(nn.Module):
         kv_state = torch.cumsum(torch.einsum("bnd,bne->bnde", K, V), dim=1)
         return torch.einsum("bnd,bnde->bne", Q, kv_state)
 
-NUM_LAYERS = 1
+NUM_LAYERS = 3
 
 class MultiLayerSelfAttention(nn.Sequential):
     def __init__(self, dim, num_layers=NUM_LAYERS):
@@ -303,6 +302,330 @@ def run_initial_lr_search(student_initial_state, teacher, dim, batch_size, num_r
     print(f"Saved initial learning rate search plot to {plot_path}")
 
 
+def generate_html_dashboard(num_layers, dim, seq_len, backprop_steps, altprop_steps, final_backprop_lr, final_altprop_lr, execution_time):
+    html_content = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linear Transformer Reconstruction Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Plus+Jakarta+Sans:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {{
+            --bg-color: #0b0f19;
+            --card-bg: rgba(22, 30, 49, 0.7);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --text-color: #f3f4f6;
+            --text-muted: #9ca3af;
+            --accent-primary: #3b82f6;
+            --accent-secondary: #ff7f0e;
+            --accent-success: #10b981;
+            --glow-color: rgba(59, 130, 246, 0.15);
+        }}
+
+        * {{
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }}
+
+        body {{
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(at 10% 20%, rgba(59, 130, 246, 0.1) 0px, transparent 50%),
+                radial-gradient(at 90% 80%, rgba(16, 185, 129, 0.05) 0px, transparent 50%);
+            background-attachment: fixed;
+            color: var(--text-color);
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            min-height: 100vh;
+            padding: 2rem;
+            line-height: 1.5;
+        }}
+
+        .container {{
+            max-width: 1400px;
+            margin: 0 auto;
+        }}
+
+        header {{
+            margin-bottom: 3rem;
+            border-bottom: 1px solid var(--card-border);
+            padding-bottom: 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+        }}
+
+        .header-title h1 {{
+            font-family: 'Outfit', sans-serif;
+            font-size: 2.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #fff 30%, #a5b4fc 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.02em;
+            margin-bottom: 0.5rem;
+        }}
+
+        .header-title p {{
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            font-weight: 300;
+        }}
+
+        .meta-badges {{
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }}
+
+        .badge {{
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 0.75rem 1.25rem;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+        }}
+
+        .badge-label {{
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            margin-bottom: 0.25rem;
+        }}
+
+        .badge-value {{
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--text-color);
+            font-family: 'Outfit', sans-serif;
+        }}
+
+        .badge-value.backprop {{
+            color: var(--accent-primary);
+        }}
+
+        .badge-value.altprop {{
+            color: var(--accent-secondary);
+        }}
+
+        /* Dashboard Grid Layout */
+        .dashboard-grid {{
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 2rem;
+        }}
+
+        .card {{
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            padding: 1.75rem;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }}
+
+        .card:hover {{
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px var(--glow-color);
+            border-color: rgba(59, 130, 246, 0.2);
+        }}
+
+        .card-header {{
+            margin-bottom: 1.25rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }}
+
+        .card-title {{
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.3rem;
+            font-weight: 600;
+            letter-spacing: -0.01em;
+        }}
+
+        .card-description {{
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+        }}
+
+        /* Dynamic Sizes for Cards */
+        .card-full {{
+            grid-column: span 12;
+        }}
+
+        .card-large {{
+            grid-column: span 6;
+        }}
+
+        @media (max-width: 1024px) {{
+            .card-large, .card-full {{
+                grid-column: span 12;
+            }}
+        }}
+
+        /* Image Display styling */
+        .image-container {{
+            width: 100%;
+            border-radius: 12px;
+            overflow: hidden;
+            background: rgba(0,0,0,0.2);
+            border: 1px solid rgba(255,255,255,0.05);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }}
+
+        .image-container img {{
+            width: 100%;
+            height: auto;
+            display: block;
+            object-fit: contain;
+            transition: transform 0.5s ease;
+        }}
+
+        .image-container:hover img {{
+            transform: scale(1.02);
+        }}
+
+        footer {{
+            margin-top: 4rem;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            border-top: 1px solid var(--card-border);
+            padding-top: 2rem;
+            padding-bottom: 2rem;
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-title">
+                <h1>Linear Transformer Reconstruction Dashboard</h1>
+                <p>Visualization and analysis of MultiLayerSelfAttention training runs with LinearSelfAttention and Least Squares Loss</p>
+            </div>
+            <div class="meta-badges">
+                <div class="badge">
+                    <span class="badge-label">Layers</span>
+                    <span class="badge-value">{num_layers}</span>
+                </div>
+                <div class="badge">
+                    <span class="badge-label">Dimension</span>
+                    <span class="badge-value">{dim}</span>
+                </div>
+                <div class="badge">
+                    <span class="badge-label">Seq Length</span>
+                    <span class="badge-value">{seq_len}</span>
+                </div>
+                <div class="badge">
+                    <span class="badge-label">backprop Convergence</span>
+                    <span class="badge-value backprop">{backprop_steps}</span>
+                </div>
+                <div class="badge">
+                    <span class="badge-label">altprop Convergence</span>
+                    <span class="badge-value altprop">{altprop_steps}</span>
+                </div>
+                <div class="badge">
+                    <span class="badge-label">Execution Time</span>
+                    <span class="badge-value">{execution_time:.2f}s</span>
+                </div>
+            </div>
+        </header>
+
+        <main class="dashboard-grid">
+            <!-- 1. Initial Learning Rate Search -->
+            <section class="card card-full">
+                <div class="card-header">
+                    <div>
+                        <h2 class="card-title">Initial Learning Rate Search</h2>
+                        <p class="card-description">Shows the 1-step and 10-step MSE reconstruction loss over a grid of learning rates on a same batch vs a different batch.</p>
+                    </div>
+                </div>
+                <div class="image-container">
+                    <img src="initial_lr_search.png" alt="Initial Learning Rate Search Plot">
+                </div>
+            </section>
+
+            <!-- 2. Reconstruction Error -->
+            <section class="card card-large">
+                <div class="card-header">
+                    <div>
+                        <h2 class="card-title">Reconstruction Error on New Batch</h2>
+                        <p class="card-description">Evaluation MSE loss on a fixed independent validation batch across optimization steps.</p>
+                    </div>
+                </div>
+                <div class="image-container">
+                    <img src="reconstruction_error.png" alt="Reconstruction Error Plot">
+                </div>
+            </section>
+
+            <!-- 3. Target Angles over Time -->
+            <section class="card card-large">
+                <div class="card-header">
+                    <div>
+                        <h2 class="card-title">Target Angles over Time</h2>
+                        <p class="card-description">Average angle (normalized by $\\pi$ radians) between the produced outputs and the desired targets on the evaluation batch.</p>
+                    </div>
+                </div>
+                <div class="image-container">
+                    <img src="target_angles_over_time.png" alt="Target Angles Plot">
+                </div>
+            </section>
+
+            <!-- 4. Weight Matrix Changes over Time -->
+            <section class="card card-large">
+                <div class="card-header">
+                    <div>
+                        <h2 class="card-title">Weight Matrix Changes over Time</h2>
+                        <p class="card-description">Frobenius norm distance to initial weights and cumulative path length traveled by each parameter matrix ($W_q$, $W_k$, $W_v$) for both backprop and altprop models.</p>
+                    </div>
+                </div>
+                <div class="image-container">
+                    <img src="weight_changes_over_time.png" alt="Weight Changes Plot">
+                </div>
+            </section>
+
+            <!-- 5. Dynamic Learning Rate over Time -->
+            <section class="card card-large">
+                <div class="card-header">
+                    <div>
+                        <h2 class="card-title">Dynamic Learning Rate over Time</h2>
+                        <p class="card-description">Adjustment of the learning rate schedule over steps based on line-search / backtracking criteria.</p>
+                    </div>
+                </div>
+                <div class="image-container">
+                    <img src="dynamic_lr_over_time.png" alt="Dynamic Learning Rate Schedule Plot">
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>Generated by Antigravity AI Code Assistant • Core Stack: PyTorch, NumPy, Matplotlib • {time.strftime('%Y-%m-%d %H:%M:%S')}</p>
+        </footer>
+    </div>
+</body>
+</html>
+"""
+    with open("index.html", "w") as f:
+        f.write(html_content)
+    print("HTML dashboard generated successfully as index.html")
+
 
 def train():
     start_time = time.time()
@@ -504,41 +827,51 @@ def train():
     ax_k.xaxis.set_major_locator(MaxNLocator(integer=True))
     ax_v.xaxis.set_major_locator(MaxNLocator(integer=True))
     
-    # Find parameter keys robustly
-    name_q = next((k for k in classic_init_params if 'W_q' in k), None)
-    name_k = next((k for k in classic_init_params if 'W_k' in k), None)
-    name_v = next((k for k in classic_init_params if 'W_v' in k), None)
+    # Map layer indices to distinct colors
+    layer_colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b']
+    
+    def get_layer_info(name):
+        if name.startswith('0.'):
+            return 'L0', 0
+        elif '.' in name:
+            parts = name.split('.')
+            return f"L{parts[0]}", int(parts[0])
+        return '', 0
 
-    # Plot W_q
-    if name_q:
-        ax_q.plot(classic_dist_to_start[name_q], label='backprop - Dist to Start', color='#1f77b4', linestyle='-', linewidth=2.5)
-        ax_q.plot(classic_path_length[name_q], label='backprop - Path Length', color='#1f77b4', linestyle='--', linewidth=2.0)
-        ax_q.plot(fixed_dist_to_start[name_q], label='altprop - Dist to Start', color='#aec7e8', linestyle=':', linewidth=2.0)
-        ax_q.plot(fixed_path_length[name_q], label='altprop - Path Length', color='#aec7e8', linestyle='-.', linewidth=1.5)
-        ax_q.set_title('Query Weight Matrix ($W_q$) Changes', fontsize=11, fontweight='bold')
-        ax_q.set_ylabel('Frobenius Norm', fontsize=10)
-        ax_q.legend(frameon=True, facecolor='white', framealpha=0.9, fontsize=8, ncol=2)
+    for name in classic_init_params:
+        layer_label, layer_idx = get_layer_info(name)
+        color = layer_colors[layer_idx % len(layer_colors)]
+        
+        if 'W_q' in name:
+            ax_q.plot(classic_dist_to_start[name], label=f'{layer_label} backprop - Dist', color=color, linestyle='-', linewidth=2.0)
+            ax_q.plot(classic_path_length[name], label=f'{layer_label} backprop - Path', color=color, linestyle='--', linewidth=1.5)
+            ax_q.plot(fixed_dist_to_start[name], label=f'{layer_label} altprop - Dist', color=color, linestyle=':', linewidth=1.5)
+            ax_q.plot(fixed_path_length[name], label=f'{layer_label} altprop - Path', color=color, linestyle='-.', linewidth=1.0)
+            
+        elif 'W_k' in name:
+            ax_k.plot(classic_dist_to_start[name], label=f'{layer_label} backprop - Dist', color=color, linestyle='-', linewidth=2.0)
+            ax_k.plot(classic_path_length[name], label=f'{layer_label} backprop - Path', color=color, linestyle='--', linewidth=1.5)
+            ax_k.plot(fixed_dist_to_start[name], label=f'{layer_label} altprop - Dist', color=color, linestyle=':', linewidth=1.5)
+            ax_k.plot(fixed_path_length[name], label=f'{layer_label} altprop - Path', color=color, linestyle='-.', linewidth=1.0)
+            
+        elif 'W_v' in name:
+            ax_v.plot(classic_dist_to_start[name], label=f'{layer_label} backprop - Dist', color=color, linestyle='-', linewidth=2.0)
+            ax_v.plot(classic_path_length[name], label=f'{layer_label} backprop - Path', color=color, linestyle='--', linewidth=1.5)
+            ax_v.plot(fixed_dist_to_start[name], label=f'{layer_label} altprop - Dist', color=color, linestyle=':', linewidth=1.5)
+            ax_v.plot(fixed_path_length[name], label=f'{layer_label} altprop - Path', color=color, linestyle='-.', linewidth=1.0)
+            
+    ax_q.set_title('Query Weight Matrix ($W_q$) Changes', fontsize=11, fontweight='bold')
+    ax_q.set_ylabel('Frobenius Norm', fontsize=10)
+    ax_q.legend(frameon=True, facecolor='white', framealpha=0.9, fontsize=7, ncol=3)
 
-    # Plot W_k
-    if name_k:
-        ax_k.plot(classic_dist_to_start[name_k], label='backprop - Dist to Start', color='#2ca02c', linestyle='-', linewidth=2.5)
-        ax_k.plot(classic_path_length[name_k], label='backprop - Path Length', color='#2ca02c', linestyle='--', linewidth=2.0)
-        ax_k.plot(fixed_dist_to_start[name_k], label='altprop - Dist to Start', color='#98df8a', linestyle=':', linewidth=2.0)
-        ax_k.plot(fixed_path_length[name_k], label='altprop - Path Length', color='#98df8a', linestyle='-.', linewidth=1.5)
-        ax_k.set_title('Key Weight Matrix ($W_k$) Changes', fontsize=11, fontweight='bold')
-        ax_k.set_ylabel('Frobenius Norm', fontsize=10)
-        ax_k.legend(frameon=True, facecolor='white', framealpha=0.9, fontsize=8, ncol=2)
+    ax_k.set_title('Key Weight Matrix ($W_k$) Changes', fontsize=11, fontweight='bold')
+    ax_k.set_ylabel('Frobenius Norm', fontsize=10)
+    ax_k.legend(frameon=True, facecolor='white', framealpha=0.9, fontsize=7, ncol=3)
 
-    # Plot W_v
-    if name_v:
-        ax_v.plot(classic_dist_to_start[name_v], label='backprop - Dist to Start', color='#d62728', linestyle='-', linewidth=2.5)
-        ax_v.plot(classic_path_length[name_v], label='backprop - Path Length', color='#d62728', linestyle='--', linewidth=2.0)
-        ax_v.plot(fixed_dist_to_start[name_v], label='altprop - Dist to Start', color='#ff9896', linestyle=':', linewidth=2.0)
-        ax_v.plot(fixed_path_length[name_v], label='altprop - Path Length', color='#ff9896', linestyle='-.', linewidth=1.5)
-        ax_v.set_title('Value Weight Matrix ($W_v$) Changes', fontsize=11, fontweight='bold')
-        ax_v.set_xlabel('Step', fontsize=10)
-        ax_v.set_ylabel('Frobenius Norm', fontsize=10)
-        ax_v.legend(frameon=True, facecolor='white', framealpha=0.9, fontsize=8, ncol=2)
+    ax_v.set_title('Value Weight Matrix ($W_v$) Changes', fontsize=11, fontweight='bold')
+    ax_v.set_xlabel('Step', fontsize=10)
+    ax_v.set_ylabel('Frobenius Norm', fontsize=10)
+    ax_v.legend(frameon=True, facecolor='white', framealpha=0.9, fontsize=7, ncol=3)
 
     fig4.suptitle('Weight Matrix Changes over Steps (Frobenius Norm)', fontsize=13, fontweight='bold', y=0.98)
     plt.tight_layout()
